@@ -6,8 +6,11 @@ A Blazor-based tool for retrieving BitLocker recovery keys and LAPS (Local Admin
 
 * Provides an easy view of all Bitlocker keys a computer has generated with their creation date.
 * Gets the LAPS password and username and lists the details in an easy to read view.
-* Allows you to copy all details for easy acess.
-* That's all really... 
+* Allows you to copy all details to the Clipboard for easy access.
+* That's all really...
+
+![A screenshot of the tool.]([http://url/to/img.png](https://github.com/AwokeinanEnigma/LegacyTrail/blob/master/image.png))
+
 ## Requirements
 
 - Active Directory environment
