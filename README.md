@@ -9,7 +9,7 @@ A Blazor-based tool for retrieving BitLocker recovery keys and LAPS (Local Admin
 * Allows you to copy all details to the Clipboard for easy access.
 * That's all really...
 
-![A screenshot of the tool.]([http://url/to/img.png](https://github.com/AwokeinanEnigma/LegacyTrail/blob/master/image.png))
+![A screenshot of the tool.]([https://github.com/AwokeinanEnigma/LegacyTrail/blob/master/image.png])
 
 ## Requirements
 
