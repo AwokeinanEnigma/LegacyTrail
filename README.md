@@ -11,16 +11,17 @@ A Blazor-based tool for retrieving BitLocker recovery keys and LAPS (Local Admin
   
 ## Requirements
 
-- Active Directory environment
-- Appropriate permissions to read BitLocker and LAPS attributes
-- .NET 8.0
-- Requires an IDE that can wrangle Maui-Blazor Hybrid.
+* Active Directory environment
+* Appropriate permissions to read BitLocker and LAPS attributes
+* .NET 8.0
+* Requires an IDE that can wrangle Maui-Blazor Hybrid.
 
 ## Built with...
 
 * C#
 * Tailwind
 * DaisyUI
+* Newtonsoft.Json
 * Maui-Blazor Hybrid
 * And a pinch of hate for Hybrid AD environments!
 
