@@ -1,0 +1,325 @@
+﻿@page "/"
+@using System.DirectoryServices
+@using System.Runtime.InteropServices
+@using System.Security.Principal
+@using System.Text
+@using TextCopy
+
+<div class="hero bg-base-300 min-h-screen">
+    <div class="mockup-window bg-base-200 border-2">
+        <div class="p-4 max-w-3xl mx-auto">
+            <!-- Main Container -->
+            <div class="flex gap-4">
+                <!-- Left Panel -->
+                <div class="rounded-lg p-4 flex-1  bg-base-100 text-center">
+                    <h1 class="font-mono sectionTitle">Legacy Trail</h1>
+                    <p class="font-mono text-md mb-4">This tool fetches the Bitlocker key and LAPS details from a
+                        computer in Active Directory.</p>
+                    <input type="text" @bind="ComputerName" @oninput="UpdateComputerName" placeholder="Computer Name"
+                           class="input font-mono input-bordered w-full max-w-xs mb-4 text-center"/>
+                    <input type="text" @bind="Domain" @oninput="UpdateDomain" placeholder="Domain Name"
+                           class="input font-mono input-bordered w-full max-w-xs mb-4 text-center"/>
+                    <p class="font-mono text-md mb-4">(Should be in "DC=my,DC=domain" format)</p>
+                    <button class="btn font-mono btn-neutral" @onclick="() => Fetch()">Fetch</button>
+                </div>
+
+                <!-- Right Panel -->
+                <div class="rounded-lg p-4 flex-1 bg-base-100">
+                    @if (Fetched)
+                    {
+                        @if (Error is null)
+                        {
+                            <div class="mb-4 text-center">
+                                @if (IsBitlockerEnabled)
+                                {
+                                    @if (BitLockerKeys.Count > 1)
+                                    {
+                                        <div class="dropdown dropdown-bottom dropdown-end dropdown-hover">
+                                            <div tabindex="0" role="button" class="btn m-1 font-mono">
+                                                Index: @(SelectedBitlockerKeyIndex + 1)</div>
+                                            <ul class="menu dropdown-content bg-base-200 rounded-box z-[1] w-52 p-2 shadow-2xl ">
+                                                @for (int i = 0; i < BitLockerKeys.Count; i++)
+                                                {
+                                                    int index = i;
+                                                    <li @onclick="() => SelectBitlockerKey(index)" class="font-mono">
+                                                        <a>@(index + 1): @BitLockerKeys[index].CreationTime</a>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    }
+
+                                    <h1 class="font-mono sectionTitle">BitLocker</h1>
+                                    <kbd
+                                        class="kbd kbd-md mb-3 mr-3">Key: @BitLockerKeys[SelectedBitlockerKeyIndex].RecoveryPassword</kbd>
+                                    <button @onclick="() => CopyContent(CopyType.BitlockerKey)"
+                                            class="kbd kbd-md mb-3 mr-3">📋
+                                    </button>
+                                    <kbd
+                                        class="kbd kbd-md mr-3">Generated: @BitLockerKeys[SelectedBitlockerKeyIndex].CreationTime</kbd>
+                                }
+                                else
+                                {
+                                    <h1 class="font-mono sectionTitle">Either BitLocker is not enabled, or you don't
+                                        have permission to view Bitlocker keys, or the computer has not generated a
+                                        Bitlocker key yet.</h1>
+                                }
+                            </div>
+
+                            <div class="mb-4 text-center">
+                                @if (IsLAPSEnabled)
+                                {
+                                    <h1 class="font-mono sectionTitle">LAPS</h1>
+                                    <kbd class="kbd kbd-md mb-3 mr-3">@LAPSUser</kbd>
+                                    <button @onclick="() => CopyContent(CopyType.LAPSUser)"
+                                            class="kbd kbd-md mb-3 mr-3 darkOnHover">📋
+                                    </button>
+                                    <kbd class="kbd kbd-md mb-3 mr-3">@LAPSPassword</kbd>
+                                    <button @onclick="() => CopyContent(CopyType.LAPSPassword)"
+                                            class="kbd kbd-md mb-3 mr-3 darkOnHover">📋
+                                    </button>
+                                }
+                                else
+                                {
+                                    <h1 class="font-mono sectionTitle">Either LAPS is not enabled, or you do not have
+                                        permission to decrypt the password.</h1>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="mb-4 text-center">
+                                <h1 class="font-mono sectionTitle">Error</h1>
+                                <p class="font-mono text-red-500">An error occurred while fetching the data.</p>
+                                <p class="font-mono text-red-500">Error: @Error.Message</p>
+                                <p class="font-mono text-red-500">Adjust your parameters and try again.</p>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="font-mono text-md">Fill out the parameters and hit Fetch to get started!</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    struct BitlockerKey
+    {
+        public string RecoveryPassword;
+        public DateTime CreationTime;
+        public string RecoveryID;
+    }
+
+    enum CopyType
+    {
+        BitlockerKey,
+        LAPSUser,
+        LAPSPassword
+    }
+
+    // strings
+    string ComputerName;
+    string Domain;
+
+    // bools
+    bool IsLAPSEnabled;
+    bool IsBitlockerEnabled;
+    bool Fetched;
+
+    string LAPSUser;
+    string LAPSPassword;
+
+    // error handling
+    Exception Error;
+
+    readonly List<BitlockerKey> BitLockerKeys = new();
+    int SelectedBitlockerKeyIndex;
+
+    void SelectBitlockerKey(int index)
+    {
+        SelectedBitlockerKeyIndex = index;
+        StateHasChanged();
+    }
+
+    private void UpdateComputerName(ChangeEventArgs changeEvent)
+    {
+        ComputerName = (string)changeEvent.Value;
+    }
+
+    private void UpdateDomain(ChangeEventArgs changeEvent)
+    {
+        Domain = (string)changeEvent.Value;
+    }
+
+    void CopyContent(CopyType copyType)
+    {
+        switch (copyType)
+        {
+            case CopyType.BitlockerKey:
+                ClipboardService.SetText(BitLockerKeys[SelectedBitlockerKeyIndex].RecoveryPassword);
+                break;
+            case CopyType.LAPSUser:
+                ClipboardService.SetText(LAPSUser);
+                break;
+            case CopyType.LAPSPassword:
+                ClipboardService.SetText(LAPSPassword);
+                break;
+        }
+    }
+
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        // fill with junk data
+#if DEBUG
+        Fetched = true;
+        IsLAPSEnabled = true;
+        LAPSUser = "Administrator";
+        LAPSPassword = "k8P]Xl5T-ky!aj4";
+        IsBitlockerEnabled = true;
+        for (int i = 0; i < 5; i++)
+        {
+            BitLockerKeys.Add(new BitlockerKey
+            {
+                RecoveryPassword = "002130-563959-533643-315590-484044-259380-247291-" + i,
+                CreationTime = DateTime.Now - TimeSpan.FromDays(i)
+            });
+        }
+#endif
+    }
+
+    public void Fetch()
+    {
+        Fetched = true;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(ComputerName) || string.IsNullOrWhiteSpace(Domain))
+            {
+                throw new Exception("Computer Name and Domain are required");
+            }
+
+            using (var directoryEntry = new DirectoryEntry($"LDAPS:\\{Domain}"))
+            {
+                using (var searcher = new DirectorySearcher(directoryEntry))
+                {
+                    // Find computer
+                    searcher.Filter = $"(&(objectCategory=Computer)(cn={ComputerName}))";
+                    SearchResult computerResult = searcher.FindOne();
+                    if (computerResult == null)
+                    {
+                        throw new Exception($"Computer '{ComputerName}' not found");
+                    }
+
+                    DirectoryEntry computer = computerResult.GetDirectoryEntry();
+                    // purely for good luck
+                    computer.RefreshCache();
+
+                    GetLAPS(computer);
+                    GetBitlockerKeys(computer, searcher);
+
+                    IsLAPSEnabled = string.IsNullOrWhiteSpace(LAPSPassword);
+                    IsBitlockerEnabled = BitLockerKeys.Count > 0;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Error = e;
+        }
+
+        StateHasChanged();
+    }
+
+    void GetLAPS(DirectoryEntry computerEntry)
+    {
+        int delegateCallback(IntPtr pvCallbackCtxt, IntPtr pbData, int cbData, [MarshalAs(UnmanagedType.Bool)] bool fFinal)
+        {
+            byte[] data = new byte[cbData];
+            Marshal.Copy(pbData, data, 0, cbData);
+            LAPSPassword = Encoding.Unicode.GetString(data);
+            return 0;
+        }
+
+        // check if msLAPS-Password is present
+        if (computerEntry.Properties["msLAPS-Password"].Value != null)
+        {
+            LAPSPassword = computerEntry.Properties["msLAPS-Password"].Value.ToString();
+        }
+
+        // this decrypts the LAPS password using NCRYPT
+        byte[] encryptedPassword = computerEntry.Properties["msLAPS-EncryptedPassword"].Value as byte[];
+        Win32.NCRYPT_PROTECT_STREAM_INFO info = new Win32.NCRYPT_PROTECT_STREAM_INFO
+        {
+            pfnStreamOutput = delegateCallback,
+            pvCallbackCtxt = IntPtr.Zero
+        };
+
+        IntPtr handle;
+        IntPtr handle2;
+        NTAccount ntaccount;
+        uint ret = Win32.NCryptStreamOpenToUnprotect(info, Win32.ProtectFlags.NCRYPT_SILENT_FLAG, IntPtr.Zero, out handle);
+        if (ret == 0)
+        {
+            IntPtr alloc = Marshal.AllocHGlobal(encryptedPassword.Length);
+            Marshal.Copy(encryptedPassword, 16, alloc, encryptedPassword.Length - 16);
+
+            // Get the authorized decryptor of the blob
+            ret = Win32.NCryptUnprotectSecret(out handle2, 0x41, alloc, (uint)encryptedPassword.Length - 16, IntPtr.Zero, IntPtr.Zero, out _, out _);
+            if (ret == 0)
+            {
+                string sid;
+
+                ret = Win32.NCryptGetProtectionDescriptorInfo(handle2, IntPtr.Zero, 1, out sid);
+                if (ret == 0)
+                {
+                    SecurityIdentifier securityIdentifier = new SecurityIdentifier(sid.Substring(4, sid.Length - 4));
+
+                    try
+                    {
+                        ntaccount = securityIdentifier.Translate(typeof(NTAccount)) as NTAccount;
+                        LAPSUser = ntaccount.ToString();
+                    }
+                    catch
+                    {
+                        LAPSUser = securityIdentifier.ToString();
+                    }
+                }
+                else
+                {
+                    LAPSUser = "Unknown";
+                }
+
+                // Decrypt the blob
+                ret = Win32.NCryptStreamUpdate(handle, alloc, encryptedPassword.Length - 16, true);
+            }
+        }
+    }
+
+    void GetBitlockerKeys(DirectoryEntry computerEntry, DirectorySearcher searcher)
+    {
+        // Get BitLocker passwords
+        searcher.SearchRoot = computerEntry;
+        searcher.Filter = "(objectClass=msFVE-RecoveryInformation)";
+
+        var bitlockerResults = searcher.FindAll();
+        foreach (SearchResult bitlockerResult in bitlockerResults)
+        {
+            if (bitlockerResult.Properties.Contains("msFVE-RecoveryPassword"))
+            {
+                BitLockerKeys.Add(new BitlockerKey
+                {
+                    RecoveryPassword = bitlockerResult.Properties["msFVE-RecoveryPassword"][0].ToString(),
+                    CreationTime = DateTime.Parse(bitlockerResult.Properties["whenCreated"][0].ToString())
+                });
+            }
+        }
+    }
+
+}
+}
