@@ -1,6 +1,6 @@
 # Legacy Trail
 
-A Blazor-based tool for retrieving BitLocker recovery keys and LAPS (Local Administrator Password Solution) credentials from Active Directory computers. 
+A Blazor-based tool for retrieving BitLocker recovery keys and LAPS credentials from computers in Active Directory. 
 
 ## Features
 
@@ -14,7 +14,6 @@ A Blazor-based tool for retrieving BitLocker recovery keys and LAPS (Local Admin
 * Active Directory environment
 * Appropriate permissions to read BitLocker and LAPS attributes
 * .NET 8.0
-* Requires an IDE that can wrangle Maui-Blazor Hybrid.
 
 ## Built with...
 
